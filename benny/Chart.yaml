@@ -1,0 +1,4 @@
+apiVersion: v2
+name: benny
+description: A Helm chart to deploy a Streamlit application
+version: 0.1.0

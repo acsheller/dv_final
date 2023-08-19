@@ -3,9 +3,23 @@
 
 **Author/Coder Anthony Sheller**
 
-**Overview**
+### Overview
 
-This project sets up the Kubernetes environment to review visualizaiton of specialized resources, such as GPU and high-speed networking that are used to accelerate containerized applications. The applications discussed are Prometheus, DCGV, and Streamlit.
+This project uses an exisitng K8s environment with a configrued ingress controller, Nginx, Prometheus and Grafana.  The System is also configured with GPU and SR-IOV networking for K8s. Combining these two technologies is very powerful.  GPUs continue to grow pushing accelerated machine learning. K8s is almost a requirement for operating in the cloud currently so its necessary to be able to combine GPU with K8s to accelerate containerized Machine Learning applications. 
 
-**Requirements** 
-A running cluster. There are many ways one could  get one setup. There is no one-way to do this. There is too much detail that can go into setting up a Kubernetes cluster. The author/coder chose to start with Docker Desktop/Kubernetes running on Windows 10. This is very easty to get installed and setup.
+With GPU acceleration one can process a great deal of data, but the data needs to get to the container.  This requires the networking for a container to be accelerated as well.  This is the role of SR-IOV in this project.  
+
+Being able to visualize the allocation of resources, both GPU and SR-IOV networking resources (Virtual Functions or VF) is vital to success. It will make it convenient to look and see what is and isn't available.  Further, insight into a containers usage of resources: network, GPU, CPU, memory, and storage will be interesting.
+
+While Grafana dashboards are readily available and can be crafted to meet users needs, the data must be in some sort of datasource, like Prometheus. This work will focus more on how an indivual application can be crafted to gain insight into specialized reesources. 
+
+### Requirements
+The details of setting up a cluster, an ingress controller, prometheus, are beyond the scope of this effort. Discussions on Prometheus and Grafana, as well as NVidias Data Center GPU Manager (DCGM) are provided in the paper, but setting things up can be very tidious and time consuming. Then again, if one deploys with helm charts it can be much easier.  
+- A K8s cluster setup with Prometheus, Grafana, with GPU, with SR-IOV networking.
+- Access to docker.io to pull the containers necessary for the Streamlit visualization. 
+- This repository to pull the Benny helm chart.  Benny, is just an harbitrary name given to the chart -- easy to type.
+
+### First Steps
+- Clone this repository
+- Confirm access to the cluster with kubectl as well as well -- be sure that kubectl and helm are installed.
+

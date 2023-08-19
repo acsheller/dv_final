@@ -1,0 +1,16 @@
+replicaCount: 1
+namespace: default
+image:
+  repository: ashelle5/k8s-streamlit
+  tag: test
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8501
+
+ingress:
+  enabled: true
+  host: benny.local
+  path: /
+  type: nginx
+

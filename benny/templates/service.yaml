@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: benny-app
+spec:
+  selector:
+    app: benny-app
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: 8501
