@@ -1,5 +1,6 @@
 ## Example Ingress 
-These are the artifactes necessary to evaluate the installation of NGINX.
+These are the artifactes necessary to evaluate the installation of NGINX. This is provided as an example.
+An Ingress Controller is required for these to work properly.  These examples show one that works with the Nginx ingress-controller.
 
 1. kubectl apply -f nginx-ws-deployment.yaml
 2. kubectl apply -f nginx-ws-service.yaml
