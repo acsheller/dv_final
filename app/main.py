@@ -13,7 +13,11 @@ import pandas as pd
 import plotly.express as px
 from urllib.error import URLError
 from kubernetes import client, config
-
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+import nvsmi
+import plotly.graph_objects as go
 
 def get_k8s_pods():
     '''
@@ -44,6 +48,7 @@ def get_k8s_pods():
 
 
 def get_nodes():
+    #config.load_incluster_config()
     config.load_kube_config()
     v1 = client.CoreV1Api()
     ret = v1.list_node()
@@ -56,11 +61,103 @@ def get_nodes():
     df['ip'] = internalIps
     return df
 
+def get_resource_types():
+ 
+    # When outside of K8s
+    config.load_kube_config()
+
+    # Because we are in teh cluster
+    #config.load_incluster_config()
+
+    v1 = client.CoreV1Api()
+    ret = v1.get_api_resources()
+    resource_types = []
+    for i in ret.resources:
+        if '/' not in i.name:
+            resource_types.append(i.name)
+    print(resource_types)
+    df = pd.DataFrame(data= resource_types,columns=['resource types'])
+    return df
+
+def get_resource_by_type(r_type='pod'):
+ 
+    # When outside of K8s
+    config.load_kube_config()
+
+    # Because we are in teh cluster
+    #config.load_incluster_config()
+
+    v1 = client.CoreV1Api()
+    ret = v1.get_api_resources()
+    resource_types = []
+    for i in ret.resources:
+        if '/' not in i.name:
+            resource_types.append(i.name)
+    print("Resource Types {}".format(resource_types))
+    df = pd.DataFrame(data= resource_types,columns=['resource types'])
+    return df
+
+
+def get_gpu_info():
+ 
+    ab = nvsmi.get_gpus()
+    
+    uuids = []
+    names = []
+    ids = []
+    gpu_util = []
+    mem_util = []
+    mem_used = []
+    mem_free = []
+    mem_total = []
+
+    for i in ab:
+        uuids.append(i.uuid)
+        names.append(i.name)
+        ids.append(i.id)
+        gpu_util.append(i.gpu_util)
+        mem_util.append(i.mem_util)
+        mem_used.append(i.mem_used)
+        mem_free.append(i.mem_free)
+        mem_total.append(i.mem_total)
+
+        
+    df = pd.DataFrame(data= uuids,columns=['uuid'])
+    df['name'] = names
+    df['id'] = ids
+    df['gpu_util'] = gpu_util
+    df['mem_util'] = mem_util
+    df['mem_free'] = mem_free
+    df['mem_total'] = mem_total
+
+    return df
+
+
+def create_gauge(value, max_value, label):
+    fig, ax = plt.subplots()
+
+    # Create a gauge-like arc
+    arc = patches.Arc((0.5, 0.5), width=0.4, height=0.4, angle=0, theta1=0, theta2=value / max_value * 180, color='green')
+    ax.add_patch(arc)
+
+    # Create a central circle to mimic a gauge
+    circle = plt.Circle((0.5, 0.5), 0.05, color='black')
+    ax.add_patch(circle)
+
+    # Set aspect ratio to be equal, remove axes, and set title
+    ax.set_aspect('equal')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(label)
+
+    # Display the plot
+    st.pyplot(fig)
+
 st.set_page_config(layout = "wide")
 
 c1,c2 = st.columns(2)
 
-page = st.sidebar.selectbox('Select View',['Start','View of Pods','Node Information','GPU','SR-IOV']) 
+page = st.sidebar.selectbox('Select View',['Start','View of Pods','Display Resource Types','GPU','SR-IOV']) 
 
 st.markdown(
 """
@@ -107,8 +204,6 @@ if page == 'Start':
     
     c2.markdown(
         """
-        **References:**
-        1.	"Fandom Contributors." "Planetina." Rick and Morty Wiki, Fandom, https://rickandmorty.fandom.com/wiki/Planetina.
         
         **GitHub Repo**
         [Data Visualization Final Project](https://github.com/acsheller/dv_final)
@@ -117,8 +212,6 @@ if page == 'Start':
 
     )    
     
-    
-
 
 if page == 'View of Pods':
     c1.subheader('EN.605.662 Data Visualization Final Project')
@@ -129,7 +222,13 @@ if page == 'View of Pods':
         This is a simple view of pods running in the cluster.
      
     """)
+    
     data = get_k8s_pods()
+    namespace_list = ['all']+ list(data.namespace.unique())
+    data.namespace.unique()
+    n_select = st.sidebar.selectbox('Select Namespace',namespace_list) 
+    if n_select != 'all':
+        data = data[data.namespace == n_select]
     c1.dataframe(data)
     c2.markdown(
         """
@@ -138,4 +237,59 @@ if page == 'View of Pods':
     """
     )    
     
+if page == 'Display Resource Types':
+    c1.subheader('EN.605.662 Data Visualization Final Project')
+    c1.subheader('Get a Resource Type')
+    c1.markdown(
+        """
+        **Overview**
+        Select a Resource Type from the available drop down.
+     
+    """)
+    
+    data = get_resource_types()
+    print(data)
+    #rt_select = st.sidebar.selectbox('Select Resource Type',data) 
+    c1.dataframe(data)
+    c2.markdown(
+        """
+        **Something Interesting:**
+
+    """
+    )    
+    
+if page == 'GPU':
+    c1.subheader('EN.605.662 Data Visualization Final Project')
+    c1.subheader('Display GPU Information')
+    c1.markdown(
+
+        """
+        **Overview**
+        
+        Information about GPU
+     
+        """)
+    
+    data = get_gpu_info()
+
+    if len(data) == 1:
+        c1.write("**{}**".format(data.loc[0]['name']))
+    c1.dataframe(data)
+    print('data')
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = data.loc[0]['gpu_util'],
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "GPU Utilization %"},
+        gauge = {'axis': {'range': [None,100]},
+                 'steps' : [
+                    {'range': [0, 75], 'color': "lightgreen"},
+                    {'range': [75, 90], 'color': "lightyellow"},
+                    {'range': [90, 100], 'color': "lavenderblush"}
+                    ]
+                 
+                 
+                 }))
+    c2.plotly_chart(fig,use_container_width=False)
+   
     

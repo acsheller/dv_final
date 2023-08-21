@@ -22,4 +22,11 @@ The details of setting up a cluster, an ingress controller, prometheus, are beyo
 ### First Steps
 - Clone this repository
 - Confirm access to the cluster with kubectl as well as well -- be sure that kubectl and helm are installed.
+- Deploy the helm chart
+```
+helm install benny ./benny
+```
+Here `./benny` is the directory `benny`.
+
+### Modifying and Building the container
 
