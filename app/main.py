@@ -19,6 +19,13 @@ import numpy as np
 import nvsmi
 import plotly.graph_objects as go
 
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.utils import to_categorical
+
+
 def get_k8s_pods():
     '''
     # Get the pods
@@ -131,6 +138,54 @@ def get_gpu_info():
     df['mem_total'] = mem_total
 
     return df
+
+def plot_loss(history):
+    loss_values = history.history['loss']
+    val_loss_values = history.history.get('val_loss', [None] * len(loss_values))
+    epochs = range(1, len(loss_values) + 1)
+
+    fig = px.line(x=epochs, y=loss_values, title='Training Loss')
+    fig.add_scatter(x=epochs, y=val_loss_values, mode='lines', name='Validation Loss')
+    return fig
+
+def plot_accuracy(history):
+    acc_values = history.history['accuracy']
+    val_acc_values = history.history.get('val_accuracy', [None] * len(acc_values))
+    epochs = range(1, len(acc_values) + 1)
+
+    fig = px.line(x=epochs, y=acc_values, title='Training Accuracy')
+    fig.add_scatter(x=epochs, y=val_acc_values, mode='lines', name='Validation Accuracy')
+    return fig
+
+
+def train_mnist_example():
+    # Check if GPU is available
+    if not tf.config.list_physical_devices('GPU'):
+        raise SystemError('GPU device not found')
+
+    # Load MNIST dataset
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_train, x_test = x_train / 255.0, x_test / 255.0  # Normalize data
+
+    # Convert labels to one-hot encoding
+    y_train = to_categorical(y_train, 10)
+    y_test = to_categorical(y_test, 10)
+
+    # Create a simple neural network model
+    model = Sequential([
+        Flatten(input_shape=(28, 28)),
+        Dense(128, activation='relu'),
+        Dense(10, activation='softmax')
+    ])
+
+    # Compile the model
+    model.compile(optimizer='adam',
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+
+    # Train the model on the data
+    history = model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
+    return history
 
 
 def create_gauge(value, max_value, label):
@@ -274,7 +329,7 @@ if page == 'GPU':
 
     if len(data) == 1:
         c1.write("**{}**".format(data.loc[0]['name']))
-    c1.dataframe(data)
+    #c1.dataframe(data)
     print('data')
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
@@ -290,6 +345,9 @@ if page == 'GPU':
                  
                  
                  }))
+    fig.update_layout(width=300,height=300)
     c2.plotly_chart(fig,use_container_width=False)
-   
     
+    #hist = train_mnist_example()
+    #c1.plotly_chart(plot_loss(hist))
+    #c1.plotly_chart(plot_accuracy(hist))
