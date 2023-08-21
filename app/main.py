@@ -66,8 +66,29 @@ def get_nodes():
     df['ip'] = internalIps
     return df
 
-def get_resource_types():
- 
+
+
+def get_nodes_for_sriov():
+    set_config()
+    v1 = client.CoreV1Api()
+    ret = v1.list_node()
+    nodes = {}
+    allocatable={}
+    
+    for i in ret.items:
+        key = i.status.addresses[1].address
+        for j in i.status.allocatable.keys():
+            allocatable[j]= i.status.allocatable[j]
+        nodes[key]= allocatable
+        allocatable = {}
+
+    df = pd.DataFrame(nodes)
+    return df
+
+
+
+
+def get_resource_types(): 
     set_config()
     v1 = client.CoreV1Api()
     ret = v1.get_api_resources()
@@ -277,6 +298,72 @@ if page == 'GPU':
         c1.write("     Total memory Free: **{} GB**".format(np.round(data.loc[0]['mem_free']/1000,2)))
     #c1.dataframe(data)
     print('data')
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = data.loc[0]['gpu_util'],
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "GPU Utilization %"},
+        gauge = {'axis': {'range': [None,100]},
+                 'steps' : [
+                    {'range': [0, 75], 'color': "lightgreen"},
+                    {'range': [75, 90], 'color': "lightyellow"},
+                    {'range': [90, 100], 'color': "lavenderblush"}
+                    ]
+                 
+                 
+                 }))
+    fig.update_layout(width=300,height=300)
+    c2.plotly_chart(fig,use_container_width=False)
+    fig2 = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = data.loc[0]['mem_util'],
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "GPU Memory Utilization %"},
+        gauge = {'axis': {'range': [None,100]},
+                 'steps' : [
+                    {'range': [0, 75], 'color': "lightgreen"},
+                    {'range': [75, 90], 'color': "lightyellow"},
+                    {'range': [90, 100], 'color': "lavenderblush"}
+                    ]
+                 
+                 
+                 }))
+    fig2.update_layout(width=300,height=300)
+    c2.plotly_chart(fig2,use_container_width=False)
+    data2 = data[['mem_free','mem_used']]
+
+    data2_melt = data2.melt(var_name='Category', value_name='Amount')
+    fig3 = px.bar(data2_melt, x=data2_melt.index, y='Amount',color='Category',
+             title='GPU Memory Utilization',
+             height=300, width=300)
+
+    # Customize the layout
+    #fig3.update_layout(barmode='stack')
+    c1.plotly_chart(fig3,use_container_width=False)
+
+    #data2 = data[['']]
+    
+    #hist = train_mnist_example()
+    #c1.plotly_chart(plot_loss(hist))
+    #c1.plotly_chart(plot_accuracy(hist))
+
+
+if page == 'SR-IOV':
+    c1.subheader('EN.605.662 Data Visualization Final Project')
+    c1.subheader('Display SRIOV Information')
+    c1.markdown(
+
+        """
+        **Overview**
+        
+        Information about GPU. this uses the Python Moduel 
+        nvsmi 
+     
+        """)
+    
+    data = get_nodes_for_sriov()
+    
+    c1.write(data.transpose())
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = data.loc[0]['gpu_util'],

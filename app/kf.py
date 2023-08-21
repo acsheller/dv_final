@@ -7,8 +7,18 @@ from kubernetes import client, config
 import pandas as pd
 import nvsmi
 
-def get_nodes():
+
+def set_config():
+    '''
+    Return it from one spot so only 
+    need to change it in one spot.
+    '''
+    #config.load_incluster_config()
     config.load_kube_config()
+
+
+def get_nodes():
+    set_config()
     v1 = client.CoreV1Api()
     ret = v1.list_node()
     internalIps = []
@@ -20,6 +30,24 @@ def get_nodes():
     df = pd.DataFrame(data = [hostnames],columns = ["hostname"])
     df['ip'] = internalIps
     return df
+
+def get_nodes_for_sriov():
+    set_config()
+    v1 = client.CoreV1Api()
+    ret = v1.list_node()
+    nodes = {}
+    allocatable={}
+    
+    for i in ret.items:
+        key = i.status.addresses[1].address
+        for j in i.status.allocatable.keys():
+            allocatable[j]= i.status.allocatable[j]
+        nodes[key]= allocatable
+        allocatable = {}
+
+    df = pd.DataFrame(nodes)
+    return df
+
 
 
 def get_k8s_pods():
@@ -105,5 +133,5 @@ def get_gpu_info():
     return df
 
 if __name__ == "__main__":
-    nodes = get_gpu_info()
+    nodes = get_nodes_for_sriov()
     print("{}".format(nodes))
