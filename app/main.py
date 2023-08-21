@@ -19,22 +19,21 @@ import numpy as np
 import nvsmi
 import plotly.graph_objects as go
 
-import tensorflow as tf
-from tensorflow.keras.datasets import mnist
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten
-from tensorflow.keras.utils import to_categorical
+
+def set_config():
+    '''
+    Return it from one spot so only 
+    need to change it in one spot.
+    '''
+    #config.load_incluster_config()
+    config.load_kube_config()
 
 
 def get_k8s_pods():
     '''
     # Get the pods
     '''
-    # When outside of K8s
-    config.load_kube_config()
-
-    # Because we are in teh cluster
-    #config.load_incluster_config()
+    set_config()
 
     v1 = client.CoreV1Api()
     #print("Listing pods with their IPs:")
@@ -55,8 +54,7 @@ def get_k8s_pods():
 
 
 def get_nodes():
-    #config.load_incluster_config()
-    config.load_kube_config()
+    set_config()
     v1 = client.CoreV1Api()
     ret = v1.list_node()
     internalIps = []
@@ -70,12 +68,7 @@ def get_nodes():
 
 def get_resource_types():
  
-    # When outside of K8s
-    config.load_kube_config()
-
-    # Because we are in teh cluster
-    #config.load_incluster_config()
-
+    set_config()
     v1 = client.CoreV1Api()
     ret = v1.get_api_resources()
     resource_types = []
@@ -87,12 +80,7 @@ def get_resource_types():
     return df
 
 def get_resource_by_type(r_type='pod'):
- 
-    # When outside of K8s
-    config.load_kube_config()
-
-    # Because we are in teh cluster
-    #config.load_incluster_config()
+    set_config()
 
     v1 = client.CoreV1Api()
     ret = v1.get_api_resources()
@@ -106,7 +94,6 @@ def get_resource_by_type(r_type='pod'):
 
 
 def get_gpu_info():
- 
     ab = nvsmi.get_gpus()
     
     uuids = []
@@ -133,59 +120,12 @@ def get_gpu_info():
     df['name'] = names
     df['id'] = ids
     df['gpu_util'] = gpu_util
+    df['mem_used'] = mem_used
     df['mem_util'] = mem_util
     df['mem_free'] = mem_free
     df['mem_total'] = mem_total
 
     return df
-
-def plot_loss(history):
-    loss_values = history.history['loss']
-    val_loss_values = history.history.get('val_loss', [None] * len(loss_values))
-    epochs = range(1, len(loss_values) + 1)
-
-    fig = px.line(x=epochs, y=loss_values, title='Training Loss')
-    fig.add_scatter(x=epochs, y=val_loss_values, mode='lines', name='Validation Loss')
-    return fig
-
-def plot_accuracy(history):
-    acc_values = history.history['accuracy']
-    val_acc_values = history.history.get('val_accuracy', [None] * len(acc_values))
-    epochs = range(1, len(acc_values) + 1)
-
-    fig = px.line(x=epochs, y=acc_values, title='Training Accuracy')
-    fig.add_scatter(x=epochs, y=val_acc_values, mode='lines', name='Validation Accuracy')
-    return fig
-
-
-def train_mnist_example():
-    # Check if GPU is available
-    if not tf.config.list_physical_devices('GPU'):
-        raise SystemError('GPU device not found')
-
-    # Load MNIST dataset
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, x_test = x_train / 255.0, x_test / 255.0  # Normalize data
-
-    # Convert labels to one-hot encoding
-    y_train = to_categorical(y_train, 10)
-    y_test = to_categorical(y_test, 10)
-
-    # Create a simple neural network model
-    model = Sequential([
-        Flatten(input_shape=(28, 28)),
-        Dense(128, activation='relu'),
-        Dense(10, activation='softmax')
-    ])
-
-    # Compile the model
-    model.compile(optimizer='adam',
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-
-    # Train the model on the data
-    history = model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
-    return history
 
 
 def create_gauge(value, max_value, label):
@@ -248,7 +188,7 @@ if page == 'Start':
         From the dropdown on the left select the visusalization you would like to view.
     """)
     # https://rickandmorty.fandom.com/wiki/Planetina
-    c1.image('images/Planetina.webp',caption='Planetina from Rick and Morty [1]')
+    #c1.image('images/Planetina.webp',caption='Planetina from Rick and Morty [1]')
     c2.markdown(
         """
         **Nodes In the Cluster**
@@ -321,14 +261,20 @@ if page == 'GPU':
         """
         **Overview**
         
-        Information about GPU
+        Information about GPU. this uses the Python Moduel 
+        nvsmi 
      
         """)
     
     data = get_gpu_info()
 
     if len(data) == 1:
+        
+        c1.write("A User could insert a GPU intensive application here and then monitor the application as is shown here.")
         c1.write("**{}**".format(data.loc[0]['name']))
+        c1.write("Total memory Available: **{} GB**".format(np.round(data.loc[0]['mem_total']/1000,2)))
+        c1.write("     Total memory Used: **{} GB**".format(np.round(data.loc[0]['mem_used']/1000,2)))
+        c1.write("     Total memory Free: **{} GB**".format(np.round(data.loc[0]['mem_free']/1000,2)))
     #c1.dataframe(data)
     print('data')
     fig = go.Figure(go.Indicator(
@@ -347,6 +293,34 @@ if page == 'GPU':
                  }))
     fig.update_layout(width=300,height=300)
     c2.plotly_chart(fig,use_container_width=False)
+    fig2 = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = data.loc[0]['mem_util'],
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "GPU Memory Utilization %"},
+        gauge = {'axis': {'range': [None,100]},
+                 'steps' : [
+                    {'range': [0, 75], 'color': "lightgreen"},
+                    {'range': [75, 90], 'color': "lightyellow"},
+                    {'range': [90, 100], 'color': "lavenderblush"}
+                    ]
+                 
+                 
+                 }))
+    fig2.update_layout(width=300,height=300)
+    c2.plotly_chart(fig2,use_container_width=False)
+    data2 = data[['mem_free','mem_used']]
+
+    data2_melt = data2.melt(var_name='Category', value_name='Amount')
+    fig3 = px.bar(data2_melt, x=data2_melt.index, y='Amount',color='Category',
+             title='GPU Memory Utilization',
+             height=300, width=300)
+
+    # Customize the layout
+    #fig3.update_layout(barmode='stack')
+    c1.plotly_chart(fig3,use_container_width=False)
+
+    #data2 = data[['']]
     
     #hist = train_mnist_example()
     #c1.plotly_chart(plot_loss(hist))

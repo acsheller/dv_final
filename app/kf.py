@@ -98,6 +98,7 @@ def get_gpu_info():
     df['ids'] = ids
     df['gpu_util'] = gpu_util
     df['mem_util'] = mem_util
+    df['mem_used'] = mem_used
     df['mem_free'] = mem_free
     df['mem_total'] = mem_total
 
