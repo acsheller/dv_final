@@ -3,5 +3,6 @@ plotly
 matplotlib
 streamlit
 kubernetes
+numpy
 altair
 nvsmi
