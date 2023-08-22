@@ -25,8 +25,8 @@ def set_config():
     Return it from one spot so only 
     need to change it in one spot.
     '''
-    #config.load_incluster_config()
-    config.load_kube_config()
+    config.load_incluster_config()
+    #config.load_kube_config()
 
 
 def get_k8s_pods():
